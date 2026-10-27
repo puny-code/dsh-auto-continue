@@ -61,6 +61,8 @@ export interface AutoContinueSettingsCardState extends CardShell {
   cooldownMs: CardFieldState;
   maxConsecutive: CardFieldState;
   scanOnBoot: CardFieldState;
+  bootWaitForClient: CardFieldState;
+  bootReadyDelayMs: CardFieldState;
   scanLimit: CardFieldState;
   freshMs: CardFieldState;
   verbose: CardFieldState;
@@ -121,6 +123,8 @@ export class AutoContinueSettingsCardController {
       numberField('cooldownMs', 0),
       numberField('maxConsecutive', 1),
       booleanField('scanOnBoot'),
+      booleanField('bootWaitForClient'),
+      numberField('bootReadyDelayMs', 0),
       numberField('scanLimit', 1),
       numberField('freshMs', 0),
       booleanField('verbose'),
@@ -162,6 +166,8 @@ export class AutoContinueSettingsCardController {
       cooldownMs: this.form.field('cooldownMs'),
       maxConsecutive: this.form.field('maxConsecutive'),
       scanOnBoot: this.form.field('scanOnBoot'),
+      bootWaitForClient: this.form.field('bootWaitForClient'),
+      bootReadyDelayMs: this.form.field('bootReadyDelayMs'),
       scanLimit: this.form.field('scanLimit'),
       freshMs: this.form.field('freshMs'),
       verbose: this.form.field('verbose'),
@@ -265,7 +271,7 @@ type FieldName = Exclude<keyof AutoContinueSettingsCardState, keyof CardShell | 
 const groups = [
   { id: 'general', fields: ['paused', 'showComposerToggle', 'resumeSilentTurns', 'resumeCompletedTurns', 'notify'] },
   { id: 'recovery', fields: ['graceMs', 'cooldownMs', 'maxConsecutive', 'classify', 'retryableErrorPatterns', 'backoffFactor', 'backoffMaxMs'] },
-  { id: 'startup', fields: ['scanOnBoot', 'scanLimit', 'freshMs'] },
+  { id: 'startup', fields: ['scanOnBoot', 'bootWaitForClient', 'bootReadyDelayMs', 'scanLimit', 'freshMs'] },
   { id: 'prompts', fields: ['continueText', 'continueTextMaxTokens', 'continueTextSilent', 'continueTextInterrupted', 'continueTextLoop', 'guardPendingText', 'guardDoneText', 'loopText'] },
   { id: 'safety', fields: ['guardTools', 'loopGuard', 'loopShortChars', 'loopWindowMs', 'loopShortCount', 'loopRepeatText', 'loopToolRepeat'] },
   { id: 'status', fields: ['verbose'] },

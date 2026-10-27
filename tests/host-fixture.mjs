@@ -2,7 +2,12 @@
 import { apply } from '../lib/index.js';
 
 export function makeHost(overrides = {}) {
-  const config = { scanOnBoot: true, verbose: false, graceMs: 10, cooldownMs: 0, ...overrides };
+  // The fixture has no browser client, so it opts out of the boot gate; tests
+  // that exercise the gate pass bootWaitForClient / bootReadyDelayMs explicitly.
+  const config = {
+    scanOnBoot: true, verbose: false, graceMs: 10, cooldownMs: 0,
+    bootWaitForClient: false, bootReadyDelayMs: 0, ...overrides,
+  };
   const agents = new Map();
   const handlers = new Map();
   const routes = new Map();

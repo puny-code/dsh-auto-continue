@@ -51,7 +51,10 @@ try {
     ctx.provide('agents', { list: () => [...agents.values()], get: id => agents.get(id) });
     try {
       await ctx.plugin(WebServer, { host: '127.0.0.1', port: 0 });
-      await ctx.plugin(plugin, { scanOnBoot: true, verbose: false, graceMs: 5, cooldownMs: 0, freshMs: 1000 });
+      await ctx.plugin(plugin, {
+        scanOnBoot: true, verbose: false, graceMs: 5, cooldownMs: 0, freshMs: 1000,
+        bootWaitForClient: false, bootReadyDelayMs: 0,
+      });
       const deadline = Date.now() + 500;
       while (Date.now() < deadline && (before.followups.length === 0 || after.followups.length === 0)) await sleep(10);
       assert.equal(before.followups.length, 1, `DSH ${version}: ${fault} must not block earlier sessions`);

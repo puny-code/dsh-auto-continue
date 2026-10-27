@@ -381,6 +381,9 @@ const FAST = {
   cooldownMs: 300,
   maxConsecutive: 3,
   scanOnBoot: true,
+  // No browser client here: keep the boot gate out of these engine-behavior tests.
+  bootWaitForClient: false,
+  bootReadyDelayMs: 0,
   verbose: false,
 };
 

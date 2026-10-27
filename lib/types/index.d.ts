@@ -47,6 +47,10 @@ export declare const AutoContinueSchema: z<Schemastery.ObjectS<{
     maxConsecutive: z<number, number>;
     /** Recover delayed interrupted sessions during the host startup window. */
     scanOnBoot: z<boolean, boolean>;
+    /** Hold startup continuations until the browser half connects to the status bridge (main window up). */
+    bootWaitForClient: z<boolean, boolean>;
+    /** Settle delay (ms) after the boot gate opens before a startup continuation is sent. */
+    bootReadyDelayMs: z<number, number>;
     /** Max eligible recoveries per scan pass (most recently active first). */
     scanLimit: z<number, number>;
     /** Interruption freshness and duration of startup polling (ms). */
@@ -112,6 +116,10 @@ export declare const AutoContinueSchema: z<Schemastery.ObjectS<{
     maxConsecutive: z<number, number>;
     /** Recover delayed interrupted sessions during the host startup window. */
     scanOnBoot: z<boolean, boolean>;
+    /** Hold startup continuations until the browser half connects to the status bridge (main window up). */
+    bootWaitForClient: z<boolean, boolean>;
+    /** Settle delay (ms) after the boot gate opens before a startup continuation is sent. */
+    bootReadyDelayMs: z<number, number>;
     /** Max eligible recoveries per scan pass (most recently active first). */
     scanLimit: z<number, number>;
     /** Interruption freshness and duration of startup polling (ms). */
@@ -180,6 +188,10 @@ export declare const Config: z<Schemastery.ObjectS<{
     maxConsecutive: z<number, number>;
     /** Recover delayed interrupted sessions during the host startup window. */
     scanOnBoot: z<boolean, boolean>;
+    /** Hold startup continuations until the browser half connects to the status bridge (main window up). */
+    bootWaitForClient: z<boolean, boolean>;
+    /** Settle delay (ms) after the boot gate opens before a startup continuation is sent. */
+    bootReadyDelayMs: z<number, number>;
     /** Max eligible recoveries per scan pass (most recently active first). */
     scanLimit: z<number, number>;
     /** Interruption freshness and duration of startup polling (ms). */
@@ -245,6 +257,10 @@ export declare const Config: z<Schemastery.ObjectS<{
     maxConsecutive: z<number, number>;
     /** Recover delayed interrupted sessions during the host startup window. */
     scanOnBoot: z<boolean, boolean>;
+    /** Hold startup continuations until the browser half connects to the status bridge (main window up). */
+    bootWaitForClient: z<boolean, boolean>;
+    /** Settle delay (ms) after the boot gate opens before a startup continuation is sent. */
+    bootReadyDelayMs: z<number, number>;
     /** Max eligible recoveries per scan pass (most recently active first). */
     scanLimit: z<number, number>;
     /** Interruption freshness and duration of startup polling (ms). */

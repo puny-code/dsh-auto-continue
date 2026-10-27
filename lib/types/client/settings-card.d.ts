@@ -26,6 +26,8 @@ export interface AutoContinueSettingsCardState extends CardShell {
     cooldownMs: CardFieldState;
     maxConsecutive: CardFieldState;
     scanOnBoot: CardFieldState;
+    bootWaitForClient: CardFieldState;
+    bootReadyDelayMs: CardFieldState;
     scanLimit: CardFieldState;
     freshMs: CardFieldState;
     verbose: CardFieldState;

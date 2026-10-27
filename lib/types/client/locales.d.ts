@@ -72,6 +72,10 @@ export declare const zh: {
     'field.maxConsecutiveHint': string;
     'field.scanOnBoot': string;
     'field.scanOnBootHint': string;
+    'field.bootWaitForClient': string;
+    'field.bootWaitForClientHint': string;
+    'field.bootReadyDelayMs': string;
+    'field.bootReadyDelayMsHint': string;
     'field.scanLimit': string;
     'field.scanLimitHint': string;
     'field.freshMs': string;

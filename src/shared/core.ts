@@ -72,6 +72,18 @@ export interface AutoContinueSettings {
   maxConsecutive?: number;
   /** Recover delayed interrupted sessions during the host startup window. */
   scanOnBoot?: boolean;
+  /**
+   * Hold startup/reconnect continuations until the browser half has connected to
+   * the status bridge (the main window is up) instead of sending while the host
+   * is still booting. A host that never gets a client (headless run) releases
+   * the gate after `BOOT_CLIENT_WAIT_MAX_MS`.
+   */
+  bootWaitForClient?: boolean;
+  /**
+   * Settle delay (ms) after the boot gate opens — the browser client connected,
+   * or the no-client fallback expired — before a startup continuation is sent.
+   */
+  bootReadyDelayMs?: number;
   /** Max eligible recoveries per scan pass (most recently active first). */
   scanLimit?: number;
   /** Interruption freshness and duration of startup polling (ms). */
@@ -123,6 +135,8 @@ export const DEFAULT_CONFIG: AutoContinueConfig = {
   cooldownMs: 20000,
   maxConsecutive: 3,
   scanOnBoot: true,
+  bootWaitForClient: true,
+  bootReadyDelayMs: 10000,
   scanLimit: 8,
   freshMs: 15 * 60 * 1000,
   verbose: true,
@@ -198,6 +212,8 @@ export function resolveConfig(section: AutoContinueSettings | undefined): AutoCo
     cooldownMs: numberOr(value.cooldownMs, DEFAULT_CONFIG.cooldownMs),
     maxConsecutive: Math.max(1, numberOr(value.maxConsecutive, DEFAULT_CONFIG.maxConsecutive)),
     scanOnBoot: booleanOr(value.scanOnBoot, DEFAULT_CONFIG.scanOnBoot),
+    bootWaitForClient: booleanOr(value.bootWaitForClient, DEFAULT_CONFIG.bootWaitForClient),
+    bootReadyDelayMs: Math.max(0, numberOr(value.bootReadyDelayMs, DEFAULT_CONFIG.bootReadyDelayMs)),
     scanLimit: Math.max(1, numberOr(value.scanLimit, DEFAULT_CONFIG.scanLimit)),
     freshMs: numberOr(value.freshMs, DEFAULT_CONFIG.freshMs),
     verbose: booleanOr(value.verbose, DEFAULT_CONFIG.verbose),
@@ -921,6 +937,13 @@ export const freshState = (): SessionState => ({
 
 
 export const RECOVERY_WINDOW_MS = 10 * 60 * 1000;
+
+/**
+ * How long the boot gate waits for a browser client before it releases on its
+ * own. Headless hosts never connect one; a restarted desktop app connects in a
+ * few seconds, so this only bounds the wait, it is not the expected latency.
+ */
+export const BOOT_CLIENT_WAIT_MAX_MS = 20 * 1000;
 
 export const ECHO_WINDOW_MS = 10 * 60 * 1000;
 const MAX_PENDING_ECHO_MESSAGE_IDS = 64;

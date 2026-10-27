@@ -55,10 +55,36 @@ export declare class AutoContinueRunner {
     private storedSweep;
     private readonly stopStoredSweep;
     /**
+     * Boot gate: startup continuations wait here until the browser half has
+     * connected (the main window is up) plus a settle delay, so a restart does not
+     * resume a turn into a host whose tools are still coming up.
+     */
+    private readonly startedAt;
+    private clientReadyAt;
+    private bootGateOpen;
+    private bootGateTimer;
+    /** Continuations detected while the gate is closed, replayed when it opens. */
+    private readonly bootGateWaiters;
+    /**
      * @param ctx - host plugin context (agents registry, session events).
      * @param getConfig - read the current resolved configuration (entry config).
      */
     constructor(ctx: Context, getConfig: () => AutoContinueConfig);
+    /**
+     * The browser half has connected to the status bridge: the main window is up.
+     * Records the first connection and re-arms the settle delay from that moment.
+     * Later clients (extra tabs, reconnects) are no-ops.
+     */
+    markClientReady(): void;
+    /**
+     * Arm the gate for a host that may never see a client: without
+     * `bootWaitForClient` it opens after the settle delay, and with it after the
+     * no-client fallback window plus the settle delay.
+     */
+    private armBootGate;
+    private openBootGate;
+    /** Hold this continuation until the gate opens; a session is held at most once. */
+    private deferBootGate;
     private log;
     /** 对外(状态桥): 今日统计快照。 */
     todayStats(): DayStats;

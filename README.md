@@ -229,6 +229,8 @@ DSH 0.1.7 / 0.2 stores these values in the `auto-continue` entry's config in the
 
 Startup recovery polls every three seconds for sessions that load late, up to `freshMs` after the engine starts. Each settled session history is inspected once. `scanLimit` limits eligible recoveries per pass, so healthy or permanent-error sessions cannot crowd out interrupted ones. Pausing suspends recovery within the same window; unloading cancels the poller.
 
+A restart scan can finish before the main window and its tools are ready, and a continuation sent that early can lose the tool calls it was meant to resume. Startup continuations therefore sit behind a gate: it stays closed until the browser half connects to the plugin's status bridge, which means the main window is up, and then waits `bootReadyDelayMs` longer before releasing them. Held continuations are released rather than dropped, so pause, cooldown and the consecutive limit are all re-evaluated at that moment; the newest window that connects wins. A host that never sees a client, such as a headless run, is released after a 20 second fallback plus the same delay. Set `bootWaitForClient: false` to keep only the delay, and set it to `false` with `bootReadyDelayMs: 0` to send as soon as the scan settles, as earlier versions did. The startup log line states which gate is in effect.
+
 The browser mirrors DSH's active language into the internal `locale` field. Leave the seven localized text fields empty or omit them to follow that language automatically; any non-empty value is treated as your own template and is never rewritten when the language changes:
 
 ```yaml
@@ -251,6 +253,8 @@ The browser mirrors DSH's active language into the internal `locale` field. Leav
     cooldownMs: 20000
     maxConsecutive: 3
     scanOnBoot: true
+    bootWaitForClient: true
+    bootReadyDelayMs: 10000
     scanLimit: 8
     freshMs: 900000
     verbose: true
@@ -326,6 +330,8 @@ When migrating from the legacy settings file to DSH 0.1.7 / 0.2, move these valu
 | Cooldown (ms) | `20000` | Min interval between recovery attempts per session; failures during cooldown wait for the remaining interval, then grace |
 | Max consecutive | `3` | Consecutive recovery-attempt cap; resets on user intervention or an observed completion with visible output. Normal autonomous-loop handoffs are exempt |
 | Scan on host startup | `on` | Recover interrupted sessions that become available during the startup window |
+| Wait for the main window | `on` | Hold startup continuations until the browser half connects to the status bridge, so a restart does not resume while tools are still loading |
+| Settle delay (ms) | `10000` | Extra wait after the main window is ready, or after the 20s no-client fallback, before a startup continuation is sent |
 | Scan limit | `8` | Maximum eligible recoveries per pass, most recently active first |
 | Scan window (ms) | `900000` | Maximum interruption age and duration of startup polling |
 | Verbose logs | `on` | `[auto-continue]` engine logs in the DSH terminal |

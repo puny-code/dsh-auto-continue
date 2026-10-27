@@ -59,6 +59,10 @@ const settingsFields = {
   maxConsecutive: z.natural().min(1).default(3),
   /** Recover delayed interrupted sessions during the host startup window. */
   scanOnBoot: z.boolean().default(true),
+  /** Hold startup continuations until the browser half connects to the status bridge (main window up). */
+  bootWaitForClient: z.boolean().default(true),
+  /** Settle delay (ms) after the boot gate opens before a startup continuation is sent. */
+  bootReadyDelayMs: z.natural().default(10000),
   /** Max eligible recoveries per scan pass (most recently active first). */
   scanLimit: z.natural().min(1).default(8),
   /** Interruption freshness and duration of startup polling (ms). */
@@ -198,6 +202,8 @@ export function apply(ctx: Context, config?: AutoContinueEntryConfig): void {
           connection: 'keep-alive',
         });
         res.write(`data: ${statePayload()}\n\n`);
+        // 主窗口已就绪: browser 半加载即订阅本桥, 这是宿主能看到的第一个客户端信号。
+        runner.markClientReady();
         const send = (data: string): void => {
           res.write(data);
         };

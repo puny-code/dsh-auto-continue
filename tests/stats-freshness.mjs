@@ -33,7 +33,10 @@ function makeHost(configOverrides = {}) {
     effect(start) { const stop = start(); if (typeof stop === 'function') cleanups.push(stop); },
     inject(deps, cb) { if (!deps.includes('settings')) cb(ctx); },
   };
-  apply(ctx, { scanOnBoot: false, verbose: false, graceMs: 10, cooldownMs: 0, ...configOverrides });
+  apply(ctx, {
+    scanOnBoot: false, verbose: false, graceMs: 10, cooldownMs: 0,
+    bootWaitForClient: false, bootReadyDelayMs: 0, ...configOverrides,
+  });
   return {
     emit(agent, event) { for (const cb of handlers.get('session/event') ?? []) cb(agent.session, event); },
     agent(id) {

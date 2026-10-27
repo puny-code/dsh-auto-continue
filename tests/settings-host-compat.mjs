@@ -65,7 +65,13 @@ try {
   class MemorySettings extends SettingsProvider {
     writable = true;
     async load() {
-      return { 'auto-continue': { paused: true, verbose: false, scanOnBoot: false, graceMs: 5, cooldownMs: 0 } };
+      return {
+        'auto-continue': {
+          paused: true, verbose: false, scanOnBoot: false, graceMs: 5, cooldownMs: 0,
+          // No browser client in this fixture: keep the boot gate out of it.
+          bootWaitForClient: false, bootReadyDelayMs: 0,
+        },
+      };
     }
     async persist() {}
   }

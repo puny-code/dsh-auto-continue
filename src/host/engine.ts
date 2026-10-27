@@ -19,6 +19,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent';
 import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session/types';
 import { foldRequestHeader, type Session } from '@deepseek-ai/dsh-session';
 import {
+  BOOT_CLIENT_WAIT_MAX_MS,
   DEFAULT_CONFIG,
   RECOVERY_WINDOW_MS,
   effectiveCooldown,
@@ -270,6 +271,17 @@ export class AutoContinueRunner {
   private wakeBootScan: (() => void) | undefined;
   private storedSweep: Promise<void> | undefined;
   private readonly stopStoredSweep = new AbortController();
+  /**
+   * Boot gate: startup continuations wait here until the browser half has
+   * connected (the main window is up) plus a settle delay, so a restart does not
+   * resume a turn into a host whose tools are still coming up.
+   */
+  private readonly startedAt = Date.now();
+  private clientReadyAt: number | undefined;
+  private bootGateOpen = false;
+  private bootGateTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Continuations detected while the gate is closed, replayed when it opens. */
+  private readonly bootGateWaiters = new Map<SessionId, { reason: string; force: boolean }>();
 
   /**
    * @param ctx - host plugin context (agents registry, session events).
@@ -323,13 +335,79 @@ export class AutoContinueRunner {
       }
     });
     const config = this.getConfig();
+    this.armBootGate();
     if (config.scanOnBoot) {
       void this.bootScanLoop();
     }
     this.log(
       `已启动(host 单实例, 文本="${config.continueText}", 宽限 ${config.graceMs}ms, ` +
-        `冷却 ${config.cooldownMs}ms, 最多连续 ${config.maxConsecutive} 次)`,
+        `冷却 ${config.cooldownMs}ms, 最多连续 ${config.maxConsecutive} 次, ` +
+        (config.bootWaitForClient
+          ? `续跑门禁: 等主窗口就绪后 ${config.bootReadyDelayMs}ms`
+          : `续跑门禁: 启动后 ${config.bootReadyDelayMs}ms`),
     );
+  }
+
+  /**
+   * The browser half has connected to the status bridge: the main window is up.
+   * Records the first connection and re-arms the settle delay from that moment.
+   * Later clients (extra tabs, reconnects) are no-ops.
+   */
+  markClientReady(): void {
+    if (this.disposed || this.clientReadyAt !== undefined) return;
+    this.clientReadyAt = Date.now();
+    const config = this.getConfig();
+    if (!config.bootWaitForClient || this.bootGateOpen) return;
+    if (this.bootGateTimer !== undefined) clearTimeout(this.bootGateTimer);
+    this.bootGateTimer = setTimeout(() => {
+      this.openBootGate('主窗口已就绪');
+    }, config.bootReadyDelayMs);
+  }
+
+  /**
+   * Arm the gate for a host that may never see a client: without
+   * `bootWaitForClient` it opens after the settle delay, and with it after the
+   * no-client fallback window plus the settle delay.
+   */
+  private armBootGate(): void {
+    const config = this.getConfig();
+    const wait = config.bootWaitForClient ? BOOT_CLIENT_WAIT_MAX_MS : 0;
+    const release = wait + config.bootReadyDelayMs;
+    // A disabled gate (0ms, no client wait) must not turn into a one-tick delay.
+    if (release <= 0) {
+      this.bootGateOpen = true;
+      return;
+    }
+    this.bootGateTimer = setTimeout(() => {
+      this.openBootGate(config.bootWaitForClient ? '未等到主窗口, 按兜底放行' : '启动延迟结束');
+    }, release);
+  }
+
+  private openBootGate(trigger: string): void {
+    if (this.disposed || this.bootGateOpen) return;
+    this.bootGateOpen = true;
+    if (this.bootGateTimer !== undefined) clearTimeout(this.bootGateTimer);
+    this.bootGateTimer = undefined;
+    this.log(`开放自动续跑(${trigger}, 启动后 ${Date.now() - this.startedAt}ms)`);
+    const waiters = [...this.bootGateWaiters];
+    this.bootGateWaiters.clear();
+    for (const [sessionId, waiter] of waiters) {
+      try {
+        this.schedule(sessionId, waiter.reason, waiter.force);
+      } catch (error) {
+        console.error(
+          `[auto-continue] 放行续跑失败 ${sessionId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+  }
+
+  /** Hold this continuation until the gate opens; a session is held at most once. */
+  private deferBootGate(sessionId: SessionId, reason: string, force: boolean): void {
+    if (this.disposed) return;
+    if (this.bootGateWaiters.has(sessionId)) return;
+    this.bootGateWaiters.set(sessionId, { reason, force });
+    this.log(`等待主窗口就绪后再续跑 ${sessionId}(${reason})`);
   }
 
   private log(message: string): void {
@@ -402,6 +480,9 @@ export class AutoContinueRunner {
     this.stopStoredSweep.abort();
     if (this.bootScanTimer !== undefined) clearTimeout(this.bootScanTimer);
     this.bootScanTimer = undefined;
+    if (this.bootGateTimer !== undefined) clearTimeout(this.bootGateTimer);
+    this.bootGateTimer = undefined;
+    this.bootGateWaiters.clear();
     this.wakeBootScan?.();
     this.wakeBootScan = undefined;
     this.disposeSessionEvents();
@@ -1021,6 +1102,11 @@ export class AutoContinueRunner {
       this.log(`跳过 ${sessionId}(${reason}): 会话暂停中`);
       return;
     }
+    // 启动门禁: 宿主刚重启时主窗口/工具还没就绪, 先挂起, 门禁开放后按同一原因重新调度。
+    if (!this.bootGateOpen) {
+      this.deferBootGate(sessionId, reason, force);
+      return;
+    }
     if (state.pendingTimer !== undefined) return; // 已有待发送
     // 连续上限优先于冷却: 已经放弃的会话不该再安排冷却后的重试。
     // 自主循环的完成续跑(force)不受二者约束。
@@ -1088,6 +1174,7 @@ export class AutoContinueRunner {
   private cancelPending(sessionId: SessionId, why: string): void {
     const state = this.state(sessionId);
     let cancelled = false;
+    if (this.bootGateWaiters.delete(sessionId)) cancelled = true;
     if (state.pendingTimer !== undefined) {
       clearTimeout(state.pendingTimer);
       state.pendingTimer = undefined;
